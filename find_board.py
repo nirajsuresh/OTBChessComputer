@@ -11,9 +11,9 @@ def read_square_map():
     with open('square_map.pkl', 'rb') as f:
         return pickle.load(f)
 
-def capture_image(file_name):
+def capture_image(file_name, shot_time='1000'):
     print("Capturing image...")
-    cmd = "raspistill -vf -o ./" + file_name + " -t 1000"
+    cmd = "raspistill -vf -o ./" + file_name + " -t " + shot_time
     subprocess.call(cmd, shell=True)
     print("Complete!")
 
@@ -41,7 +41,7 @@ def get_mask(img, display=False):
 def find_board(img):
     mask = get_mask(img, display=False)
     #may need to change depending on lighting
-    thresh = 80
+    thresh = 60
     #find top
     h = 0
     try:
@@ -59,6 +59,8 @@ def find_board(img):
 
         board_bottom = h
     except:
+        cv2.imshow('mask', mask)
+        cv2.waitKey(0)
         print("Board not found. Exiting.")
         exit()
 
@@ -103,7 +105,7 @@ if __name__ == "__main__":
     squares = {}
     image_path = "test_image.jpg"
     letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
-    capture_image(image_path)
+    capture_image(image_path, shot_time='10000')
     img = cv2.imread(image_path, 1)
     img = resize_img(img)
     board_boundaries, board = find_board(img)

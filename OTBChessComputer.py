@@ -4,6 +4,7 @@ import numpy as np
 import pickle
 from find_board import *
 import os
+from engine import *
 
 def condense_position(position):
     position_split = position.split('/')
@@ -54,25 +55,71 @@ def get_max_diff(prev, current):
     diffs = np.mean(np.abs(current_vals - prev_vals), axis=1)
     idx = (-diffs).argsort()[:4]
     sorted_inds = np.argsort(diffs)
-    # for i in range(1, 7):
-    #     print(keys[sorted_inds[-i]], diffs[sorted_inds[-i]])
+    for i in range(1, 5):
+        print(keys[sorted_inds[-i]], diffs[sorted_inds[-i]])
     return [keys[i] for i in idx]
+
+
+def update_position(move_played, position):
+    position_split = position.split('/')
+    if move_played == 'O-O':
+        if to_play == 'w':
+            position_split[7] = position_split[7][0:4] + "_RK_"
+        else:
+            position_split[0] = position_split[0][0:4] + "_rk_"
+    elif move_played == 'O-O-O':
+        if to_play == 'w':
+            position_split[7] = "__KR_" + position_split[7][5:]
+        else:
+            position_split[0] = "__kl_" + position_split[0][5:]
+    else:
+        if len(move_played) == 5:
+            move_played = move_played[1:]
+        rank_1 = 8 - int(move_played[1])
+        file_1 = ord(move_played[0]) - 97
+        piece_1 = position_split[rank_1][file_1]
+
+        rank_2 = 8 - int(move_played[3])
+        file_2 = ord(move_played[2]) - 97
+        piece_2 = position_split[rank_2][file_2]
+
+        rank_1_list = list(position_split[rank_1])
+        rank_2_list = list(position_split[rank_2])
+        if rank_1 == rank_2:
+            rank_2_list = rank_1_list
+        if piece_1 == '_':
+            rank_1_list[file_1] = piece_2
+            rank_2_list[file_2] = '_'
+        elif piece_2 == '_':
+            rank_1_list[file_1] = '_'
+            rank_2_list[file_2] = piece_1
+        else:
+            if to_play == 'w':
+                if piece_1.isupper():
+                    rank_1_list[file_1] = '_'
+                    rank_2_list[file_2] = piece_1
+                else:
+                    rank_1_list[file_1] = piece_2
+                    rank_2_list[file_2] = '_'
+            else:
+                if piece_1.isupper():
+                    rank_1_list[file_1] = piece_2
+                    rank_2_list[file_2] = '_'
+                else:
+                    rank_1_list[file_1] = '_'
+                    rank_2_list[file_2] = piece_1
+        position_split[rank_1] = "".join(rank_1_list)
+        position_split[rank_2] = "".join(rank_2_list)
+    position = "/".join(position_split)
+    return position
 
 
 def get_move(diff, to_play, position):
     position_split = position.split('/')
     if set(diff) == w_OO or set(diff) == b_OO:
         to_return = ['O-O']
-        if to_play == 'w':
-            position_split[7] = position_split[7][0:4] + "_RK_"
-        else:
-            position_split[0] = position_split[0][0:4] + "_rk_"
     elif set(diff) == w_OOO or set(diff) == b_OOO:
         to_return = ['O-O-O']
-        if to_play == 'w':
-            position_split[7] = "__KR_" + position_split[7][5:]
-        else:
-            position_split[0] = "__kl_" + position_split[0][5:]
     else:
         rank_1 = 8 - int(diff[0][1])
         file_1 = ord(diff[0][0]) - 97
@@ -82,39 +129,25 @@ def get_move(diff, to_play, position):
         file_2 = ord(diff[1][0]) - 97
         piece_2 = position_split[rank_2][file_2]
 
-        rank_1_list = list(position_split[rank_1])
-        rank_2_list = list(position_split[rank_2])
         if piece_1 == '_':
-            rank_1_list[file_1] = piece_2
-            rank_2_list[file_2] = '_'
-            to_return = [piece_2 + diff[1], piece_1 + diff[0]]
+            to_return = [diff[1], diff[0]]
         elif piece_2 == '_':
-            rank_1_list[file_1] = '_'
-            rank_2_list[file_2] = piece_1
-            to_return = [piece_1 + diff[0], piece_2 + diff[1]]
+            to_return = [diff[0], diff[1]]
         else:
             if to_play == 'w':
                 if piece_1.isupper():
-                    rank_1_list[file_1] = '_'
-                    rank_2_list[file_2] = piece_1
-                    to_return = [piece_1 + diff[0], piece_2 + diff[1]]
+                    to_return = [diff[0], diff[1]]
                 else:
-                    rank_1_list[file_1] = piece_2
-                    rank_2_list[file_2] = '_'
-                    to_return = [piece_2 + diff[1], piece_1 + diff[0]]
+                    to_return = [diff[1], diff[0]]
             else:
                 if piece_1.isupper():
-                    rank_1_list[file_1] = piece_2
-                    rank_2_list[file_2] = '_'
-                    to_return = [piece_2 + diff[1], piece_1 + diff[0]]
+                    to_return = [diff[1], diff[0]]
                 else:
-                    rank_1_list[file_1] = '_'
-                    rank_2_list[file_2] = piece_1
-                    to_return = [piece_1 + diff[0], piece_2 + diff[1]]
-        position_split[rank_1] = "".join(rank_1_list)
-        position_split[rank_2] = "".join(rank_2_list)
-    position = "/".join(position_split)
-    return to_return, position
+                    to_return = [diff[0], diff[1]]
+    move_played = "".join(to_return)
+    if move_played[0].upper() == 'P':
+        move_played = move_played[1:]
+    return move_played
 
 
 def display_board_diff(prev_board, board):
@@ -130,6 +163,7 @@ def display_board_diff(prev_board, board):
     cv2.waitKey()
 
 if __name__ == "__main__":
+    comp_play = 'w'
     squares = read_square_map()
     [board_top, board_bottom, board_left, board_right] = squares.get('Boundaries')
     initial = True
@@ -152,19 +186,22 @@ if __name__ == "__main__":
         if initial:
             initial = False
             prev = current
-            prev_board = board
         else:
+            print("Move number:{}".format(move))
             diff = get_max_diff(prev, current)
             # for coord in diff:
             #     temp = cv2.drawContours(board, [squares.get(coord)], 0, (0,0,255), 1)
             # cv2.imshow("temp", temp)
             # cv2.waitKey()
             # pieces = update_position(position, diff, to_play)
-            move_played, position = get_move(diff, to_play, position) 
+            move_played = get_move(diff, to_play, position)
             print(to_play, move_played)
+            position = update_position(move_played, position)
             print(condense_position(position))
             prev = current
-            prev_board = board
+            if to_play != comp_play:
+                print('Calculating...')
+                print("Move:" + stockfish_move(condense_position(position), comp_play))
             if to_play == 'w':
                 to_play = 'b'
             else:
